@@ -23,6 +23,21 @@ function display() {
      
       promptCustomerForItem(res);
     });
-  };
-  
+ var table = new Table({
+     head: ["Product Id", "Product Description","Cost"],
+     colWidths:[12, 50, 8],
+     colAligns: ["center","left","right"],
+     style: {
+         head: ["blue"],
+         compact: true
+     }
+  })
+  for(var i = 0; i< res.length; i++){
+      table.push ([res[i].id, res[i].products_name, res[i].price]);
+  }
+  console.log(table.toString());
+  console.log("");
+
+};
+display();
   
