@@ -1,43 +1,95 @@
-var mysql = require("mysql");
-var inquirer = require("inquirer");
-var Table = require("cli-table2");
 
-var connection = mysql.createConnection({
-    host:"",
-    user:"",
-    password:"",
-    database:"",
-    port:3306
+
+//load npm package inquirer: 
+var inquirer = require('inquirer'); 
+
+//require sql: 
+const mysql = require('mysql'); 
+
+require('console.table');
+
+//connect to mysql: 
+
+const connection = mysql.createConnection({
+    host: 'localhost',
+    port: '3306', 
+    user: 'root',
+    password: '',
+    database: 'bamazon'
 })
-connection.connect;
 
+connection.connect(function(err){ 
+    if(err) throw err; 
+    console.log('connection as id' + connection.threadId); 
+    connection.query('SELECT * FROM products', function(err, res) {
+        console.log('res', res); 
+    allowInquirer(); 
+    })
+})
 
-// loads data from products table to terminal console
-function display() {
-    // Selects all of the data from the MySQL products table
-    connection.query("SELECT * FROM products", function(err, res) {
-        if (err) throw err;
-        console.log("Welcome to Bamazon!")
-      // Lists table into the console
-      console.table(res);
-     
-      promptCustomerForItem(res);
-    });
- var table = new Table({
-     head: ["Product Id", "Product Description","Cost"],
-     colWidths:[12, 50, 8],
-     colAligns: ["center","left","right"],
-     style: {
-         head: ["blue"],
-         compact: true
-     }
-  })
-  for(var i = 0; i< res.length; i++){
-      table.push ([res[i].id, res[i].products_name, res[i].price]);
-  }
-  console.log(table.toString());
-  console.log("");
+var newAmountInStock;
+var productName; 
 
+// //prompt users: 1) ask for ID of product, 2) how many units they'd like to buy: 
+var allowInquirer = function() { 
+
+    inquirer
+        .prompt([
+            {
+                type: 'list', 
+                message: 'Please select the product for purchase', 
+                choices: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'], 
+                name: 'productID' 
+            }, 
+            {
+                type: 'input', 
+                message: 'How many?',
+                name: 'amount'
+            }
+        ])
+        .then(function(response) {
+            
+            var productChosen = response.productID;
+            var amountChosen = response.amount;
+            
+            //pull out queries from mysql:
+            connection.query('SELECT * FROM products', function(err, res){ 
+                productName = res[productChosen -1].product_name; 
+                var productAmount = res[productChosen -1].stock_quantity; 
+                var productPrice = res[productChosen -1].price;
+
+                newAmountInStock = productAmount - amountChosen; 
+
+                console.log('Product ID: ', productChosen, '| ',  'Product Chosen: ' + productName);
+                console.log('Amount Chosen: ', amountChosen,  '| ', 'Amount in Stock: ' + productAmount); 
+                
+                //check if amount is in stock:
+                if (amountChosen > productAmount) { 
+                    console.log('Unfortunatly we do not have that much of this product');
+                } else { 
+                    console.log('Great! We have this amount in our storage')
+                    console.log('The product price is: ' + productPrice + ", and your total purchase is: " + productPrice*amountChosen)
+                    console.log('There are NOW ' + newAmountInStock + ' of this products in stock.') 
+                
+                    //update the database: 
+                    connection.query(
+                        'UPDATE products SET ? WHERE ?',
+                        [
+                            {
+                                stock_quantity: newAmountInStock
+                            }, 
+                            { 
+                                product_name: productName
+                            }
+                        ],
+                        function(err, res) { 
+                            if (err) throw err;
+                            console.log('Rows Changed in mysql: ' + res.affectedRows);                 
+                            //stop the connection to mysql:
+                            connection.end();
+                        }
+                    )
+                }
+            })
+        });
 };
-display();
-  
